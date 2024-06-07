@@ -10,8 +10,9 @@ import (
 )
 
 type httpRequest struct {
-	Method string
-	Url    string
+	Method    string
+	Url       string
+	PathParam string
 }
 
 func main() {
@@ -32,9 +33,13 @@ func main() {
 	var response string
 	httpReq := requestHandler(conn)
 
-	if httpReq.Url == "/" {
+	switch httpReq.Url {
+	case "/":
 		response = "HTTP/1.1 200 OK\r\n\r\n"
-	} else {
+	case "echo":
+		length := len(httpReq.PathParam)
+		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.PathParam)
+	default:
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
 
@@ -68,11 +73,14 @@ func requestHandler(conn net.Conn) httpRequest {
 	}
 
 	request := string(buffer)
+	fmt.Printf("Request: %v", request)
 	header := strings.SplitN(request, "\r\n", 2)[0]
 	headerParts := strings.Split(header, " ")
-
+	pathParams := strings.Split(headerParts[1], "/")
+	url := pathParams[1]
 	return httpRequest{
-		Method: headerParts[0],
-		Url:    headerParts[1],
+		Method:    headerParts[0],
+		Url:       url,
+		PathParam: pathParams[2],
 	}
 }

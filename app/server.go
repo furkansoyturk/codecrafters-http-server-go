@@ -43,6 +43,7 @@ func main() {
 		length := len(httpReq.PathParam)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.PathParam)
 	default:
+		log.Printf("request -> %v , path param -> %v", httpReq.Url, httpReq.PathParam)
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
 
@@ -79,7 +80,12 @@ func requestHandler(conn net.Conn) httpRequest {
 	header := strings.SplitN(request, "\r\n", 2)[0]
 	headerParts := strings.Split(header, " ")
 	pathParams := strings.Split(headerParts[1], "/")
-	pathParam := strings.TrimSpace(pathParams[2])
+
+	var pathParam string
+	log.Printf("path params len %v", len(pathParams))
+	if len(pathParams) > 2 {
+		pathParam = strings.TrimSpace(pathParams[2])
+	}
 	url := pathParams[1]
 	return httpRequest{
 		Method:    headerParts[0],

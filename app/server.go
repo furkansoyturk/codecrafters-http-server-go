@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ type httpRequest struct {
 }
 
 func main() {
+	log.Printf("Listening on 4221...")
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -37,6 +39,7 @@ func main() {
 	case "/":
 		response = "HTTP/1.1 200 OK\r\n\r\n"
 	case "echo":
+		log.Printf("path params -> %v", httpReq.PathParam)
 		length := len(httpReq.PathParam)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.PathParam)
 	default:
@@ -48,7 +51,6 @@ func main() {
 		fmt.Println("Error writing to connection")
 		os.Exit(1)
 	}
-
 }
 
 func requestHandler(conn net.Conn) httpRequest {
@@ -73,14 +75,15 @@ func requestHandler(conn net.Conn) httpRequest {
 	}
 
 	request := string(buffer)
-	fmt.Printf("Request: %v", request)
+	log.Printf("Request: %v", request)
 	header := strings.SplitN(request, "\r\n", 2)[0]
 	headerParts := strings.Split(header, " ")
 	pathParams := strings.Split(headerParts[1], "/")
+	pathParam := strings.TrimSpace(pathParams[2])
 	url := pathParams[1]
 	return httpRequest{
 		Method:    headerParts[0],
 		Url:       url,
-		PathParam: pathParams[2],
+		PathParam: pathParam,
 	}
 }

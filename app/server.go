@@ -36,6 +36,8 @@ func main() {
 	httpReq := requestHandler(conn)
 
 	switch httpReq.Url {
+	case "":
+		response = "HTTP/1.1 200 OK\r\n\r\n"
 	case "/":
 		response = "HTTP/1.1 200 OK\r\n\r\n"
 	case "echo":

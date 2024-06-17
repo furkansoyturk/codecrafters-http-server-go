@@ -25,47 +25,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn, err := l.Accept()
-	defer conn.Close()
+	for {
 
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
+		conn, err := l.Accept()
 
-	var response string
-	httpReq := requestHandler(conn)
-
-	switch httpReq.Url {
-	case "":
-		response = "HTTP/1.1 200 OK\r\n\r\n"
-	case "/":
-		response = "HTTP/1.1 200 OK\r\n\r\n"
-	case "user-agent":
-		length := len(httpReq.UserAgent)
-		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.UserAgent)
-	case "echo":
-		length := len(httpReq.PathParam)
-		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.PathParam)
-	default:
-		response = "HTTP/1.1 404 Not Found\r\n\r\n"
-	}
-
-	_, err = conn.Write([]byte(response))
-	if err != nil {
-		fmt.Println("Error writing to connection")
-		os.Exit(1)
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+		go requestHandler(conn)
 	}
 }
 
-func requestHandler(conn net.Conn) httpRequest {
+func requestHandler(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	buffer := make([]byte, 0, 4096)
 	temp := make([]byte, 512)
 
 	for {
 		n, err := reader.Read(temp)
-
 		if err != nil {
 			if err != io.EOF {
 				fmt.Println("Error reading:", err.Error())
@@ -76,7 +54,6 @@ func requestHandler(conn net.Conn) httpRequest {
 		if strings.Contains(string(buffer), "\r\n\r\n") {
 			break
 		}
-
 	}
 	var httpRequest httpRequest
 	request := string(buffer)
@@ -99,5 +76,32 @@ func requestHandler(conn net.Conn) httpRequest {
 			httpRequest.UserAgent = requestFields[i+1]
 		}
 	}
-	return httpRequest
+	responseHander(httpRequest, conn)
+}
+
+func responseHander(req httpRequest, conn net.Conn) {
+	defer conn.Close()
+
+	var response string
+	switch req.Url {
+	case "":
+		response = "HTTP/1.1 200 OK\r\n\r\n"
+	case "/":
+		response = "HTTP/1.1 200 OK\r\n\r\n"
+	case "user-agent":
+		length := len(req.UserAgent)
+		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
+	case "echo":
+		length := len(req.PathParam)
+		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+	default:
+		response = "HTTP/1.1 404 Not Found\r\n\r\n"
+	}
+
+	_, err := conn.Write([]byte(response))
+	if err != nil {
+		fmt.Println("Error writing to connection")
+		os.Exit(1)
+	}
+
 }

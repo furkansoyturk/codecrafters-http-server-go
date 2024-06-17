@@ -14,6 +14,7 @@ type httpRequest struct {
 	Method    string
 	Url       string
 	PathParam string
+	UserAgent string
 }
 
 func main() {
@@ -40,6 +41,9 @@ func main() {
 		response = "HTTP/1.1 200 OK\r\n\r\n"
 	case "/":
 		response = "HTTP/1.1 200 OK\r\n\r\n"
+	case "user-agent":
+		length := len(httpReq.UserAgent)
+		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.UserAgent)
 	case "echo":
 		log.Printf("path params -> %v", httpReq.PathParam)
 		length := len(httpReq.PathParam)
@@ -76,22 +80,21 @@ func requestHandler(conn net.Conn) httpRequest {
 		}
 
 	}
-
+	var httpRequest httpRequest
 	request := string(buffer)
 	log.Printf("Request: %v", request)
-	header := strings.SplitN(request, "\r\n", 2)[0]
-	headerParts := strings.Split(header, " ")
-	pathParams := strings.Split(headerParts[1], "/")
 
-	var pathParam string
-	log.Printf("path params len %v", len(pathParams))
-	if len(pathParams) > 2 {
-		pathParam = strings.TrimSpace(pathParams[2])
+	requestFields := strings.Fields(request)
+	httpRequest.Method = requestFields[0]
+	urlParts := strings.Split(requestFields[1], "/")
+
+	httpRequest.Url = urlParts[1]
+	httpRequest.PathParam = urlParts[2]
+	for i, r := range requestFields {
+		switch strings.ToLower(r) {
+		case "user-agent:":
+			httpRequest.UserAgent = requestFields[i+1]
+		}
 	}
-	url := pathParams[1]
-	return httpRequest{
-		Method:    headerParts[0],
-		Url:       url,
-		PathParam: pathParam,
-	}
+	return httpRequest
 }

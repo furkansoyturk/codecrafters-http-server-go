@@ -45,11 +45,9 @@ func main() {
 		length := len(httpReq.UserAgent)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.UserAgent)
 	case "echo":
-		log.Printf("path params -> %v", httpReq.PathParam)
 		length := len(httpReq.PathParam)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, httpReq.PathParam)
 	default:
-		log.Printf("request -> %v , path param -> %v", httpReq.Url, httpReq.PathParam)
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
 
@@ -83,16 +81,15 @@ func requestHandler(conn net.Conn) httpRequest {
 	var httpRequest httpRequest
 	request := string(buffer)
 	log.Printf("Request: %v", request)
-
 	requestFields := strings.Fields(request)
 	httpRequest.Method = requestFields[0]
-
 	urlParts := strings.Split(requestFields[1], "/")
 
 	switch len(urlParts) {
 	case 2:
 		httpRequest.Url = urlParts[1]
 	case 3:
+		httpRequest.Url = urlParts[1]
 		httpRequest.PathParam = urlParts[2]
 	}
 

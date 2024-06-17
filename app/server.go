@@ -86,10 +86,16 @@ func requestHandler(conn net.Conn) httpRequest {
 
 	requestFields := strings.Fields(request)
 	httpRequest.Method = requestFields[0]
+
 	urlParts := strings.Split(requestFields[1], "/")
 
-	httpRequest.Url = urlParts[1]
-	httpRequest.PathParam = urlParts[2]
+	switch len(urlParts) {
+	case 2:
+		httpRequest.Url = urlParts[1]
+	case 3:
+		httpRequest.PathParam = urlParts[2]
+	}
+
 	for i, r := range requestFields {
 		switch strings.ToLower(r) {
 		case "user-agent:":

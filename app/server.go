@@ -140,8 +140,5 @@ func readFile(fileName string) (length int, data string, e error) {
 	if err != nil {
 		log.Println("err while reading file")
 	}
-	// log.Println("file -> " + string(file))
-	// log.Printf("len - > %v", len(file))
-	// log.Println("file name -> " + fileName)
 	return len(file), string(file), err
 }

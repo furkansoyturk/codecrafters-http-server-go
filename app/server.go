@@ -104,11 +104,11 @@ func responseHander(req httpRequest, conn net.Conn) {
 			fileName := name[:strings.IndexByte(name, '.')]
 			log.Println("requested file name " + fileName)
 			log.Println("path param is " + req.PathParam)
-			if fileName == req.PathParam {
+			switch req.PathParam {
+			case fileName:
 				response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
-			} else {
+			default:
 				response = fmt.Sprintf("HTTP/1.1 404 Not Found\r\n\r\n")
-
 			}
 		}
 

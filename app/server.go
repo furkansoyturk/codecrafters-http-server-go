@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -94,6 +95,23 @@ func responseHander(req httpRequest, conn net.Conn) {
 	case "echo":
 		length := len(req.PathParam)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+	case "files":
+		log.Println("requested file -> " + req.PathParam)
+		files := findFilesInTmp()
+
+		for _, file := range files {
+			name, length, data := readFile(file)
+			fileName := name[:strings.IndexByte(name, '.')]
+			log.Println("requested file name " + fileName)
+			log.Println("path param is " + req.PathParam)
+			if fileName == req.PathParam {
+				response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
+			} else {
+				response = fmt.Sprintf("HTTP/1.1 404 Not Found\r\n\r\n")
+
+			}
+		}
+
 	default:
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
@@ -104,4 +122,34 @@ func responseHander(req httpRequest, conn net.Conn) {
 		os.Exit(1)
 	}
 
+}
+func findFilesInTmp() map[string]string {
+	path, err := os.Getwd()
+	if err != nil {
+		log.Fatal("err while getting current path")
+	}
+
+	files := make(map[string]string)
+	path = path + "/tmp/"
+	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if filepath.Base(path) != "tmp" {
+			files[path] = filepath.Base(path)
+			if err != nil {
+				log.Println("ERROR:", err)
+			}
+		}
+		return nil
+	})
+	return files
+}
+func readFile(fileName string) (name string, length int, data string) {
+	// log.Println("file name :" + fileName)
+	file, err := os.ReadFile("tmp/" + fileName)
+	if err != nil {
+		log.Fatal("err while reading file")
+	}
+	// log.Println("file -> " + string(file))
+	// log.Printf("len - > %v", len(file))
+	// log.Println("file name -> " + fileName)
+	return fileName, len(file), string(file)
 }

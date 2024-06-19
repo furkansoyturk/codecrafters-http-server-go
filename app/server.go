@@ -97,19 +97,11 @@ func responseHander(req httpRequest, conn net.Conn) {
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
 	case "files":
 		log.Println("requested file -> " + req.PathParam)
-		files := findFilesInTmp()
-
-		for _, file := range files {
-			name, length, data := readFile(file)
-			fileName := name[:strings.IndexByte(name, '.')]
-			log.Println("requested file name " + fileName)
-			log.Println("path param is " + req.PathParam)
-			switch req.PathParam {
-			case fileName:
-				response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
-			default:
-				response = fmt.Sprintf("HTTP/1.1 404 Not Found\r\n\r\n")
-			}
+		length, data, err := readFile(req.PathParam)
+		if err != nil {
+			response = ("HTTP/1.1 404 Not Found\r\n\r\n")
+		} else {
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
 		}
 
 	default:
@@ -142,14 +134,14 @@ func findFilesInTmp() map[string]string {
 	})
 	return files
 }
-func readFile(fileName string) (name string, length int, data string) {
-	// log.Println("file name :" + fileName)
-	file, err := os.ReadFile("tmp/" + fileName)
+func readFile(fileName string) (length int, data string, e error) {
+	log.Println("file name :" + fileName)
+	file, err := os.ReadFile("tmp/" + fileName + ".txt")
 	if err != nil {
-		log.Fatal("err while reading file")
+		log.Println("err while reading file")
 	}
 	// log.Println("file -> " + string(file))
 	// log.Printf("len - > %v", len(file))
 	// log.Println("file name -> " + fileName)
-	return fileName, len(file), string(file)
+	return len(file), string(file), err
 }

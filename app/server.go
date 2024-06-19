@@ -136,7 +136,7 @@ func findFilesInTmp() map[string]string {
 }
 func readFile(fileName string) (length int, data string, e error) {
 	log.Println("file name :" + fileName)
-	file, err := os.ReadFile("/tmp/" + fileName)
+	file, err := os.ReadFile("/tmp/codecrafters.io/http-server-tester/" + fileName)
 	if err != nil {
 		log.Println("err while reading file")
 	}

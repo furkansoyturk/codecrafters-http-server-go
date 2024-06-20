@@ -67,7 +67,7 @@ func requestHandler(conn net.Conn) {
 	var count int
 	var body string
 	for i, s := range requestFields {
-		if strings.ToLower(s) == "content-length:" {
+		if strings.ToLower(s) == "content-type:" {
 			count = 2 + i
 		}
 	}

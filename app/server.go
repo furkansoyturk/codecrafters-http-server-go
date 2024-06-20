@@ -127,7 +127,7 @@ func responseHander(req httpRequest, conn net.Conn) {
 			dir := "/tmp/data/codecrafters.io/http-server-tester/" + req.PathParam
 			os.Create(dir)
 			os.WriteFile(dir, data, 666)
-			response = fmt.Sprintf("HTTP/1.1 201 Created\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", len(string(data)), string(data))
+			response = fmt.Sprintf("HTTP/1.1 201 Created\r\n\r\n%v", string(data))
 		}
 
 	default:

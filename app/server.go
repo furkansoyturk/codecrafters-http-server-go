@@ -112,7 +112,7 @@ func responseHander(req httpRequest, conn net.Conn) {
 
 		data := []byte(req.Body)
 		if req.Method == "POST" {
-			dir := "/tmp/" + req.PathParam
+			dir := "tmp/data/codecrafters.io/http-server-tester/" + req.PathParam
 			log.Println("POST REQ. " + req.Method)
 			os.Create(dir)
 			os.WriteFile(dir, data, 666)

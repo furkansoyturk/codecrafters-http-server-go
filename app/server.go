@@ -78,6 +78,7 @@ func requestHandler(conn net.Conn) {
 			body += " "
 		}
 	}
+	log.Println("body - > " + body)
 	httpRequest.Body = body
 
 	switch len(urlParts) {
@@ -122,8 +123,8 @@ func responseHander(req httpRequest, conn net.Conn) {
 			}
 		}
 
-		data := []byte(req.Body)
 		if req.Method == "POST" {
+			data := []byte(req.Body)
 			dir := "/tmp/data/codecrafters.io/http-server-tester/" + req.PathParam
 			os.Create(dir)
 			os.WriteFile(dir, data, 666)

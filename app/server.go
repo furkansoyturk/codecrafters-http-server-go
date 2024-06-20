@@ -16,6 +16,7 @@ type httpRequest struct {
 	Url       string
 	PathParam string
 	UserAgent string
+	Body      string
 }
 
 func main() {
@@ -62,6 +63,7 @@ func requestHandler(conn net.Conn) {
 	requestFields := strings.Fields(request)
 	httpRequest.Method = requestFields[0]
 	urlParts := strings.Split(requestFields[1], "/")
+	httpRequest.Body = requestFields[len(requestFields)-1]
 
 	switch len(urlParts) {
 	case 2:
@@ -96,12 +98,25 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.PathParam)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
 	case "files":
+
 		log.Println("requested file -> " + req.PathParam)
-		length, data, err := readFile(req.PathParam)
-		if err != nil {
-			response = ("HTTP/1.1 404 Not Found\r\n\r\n")
-		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
+		if req.Method == "GET" {
+			length, data, err := readFile(req.PathParam)
+			if err != nil {
+				response = ("HTTP/1.1 404 Not Found\r\n\r\n")
+			} else {
+				response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
+			}
+
+		}
+
+		data := []byte(req.Body)
+		if req.Method == "POST" {
+			dir := "/tmp/" + req.PathParam
+			log.Println("POST REQ. " + req.Method)
+			os.Create(dir)
+			os.WriteFile(dir, data, 666)
+			response = fmt.Sprintf("HTTP/1.1 201 Created\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", len(req.Body), req.Body)
 		}
 
 	default:

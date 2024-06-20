@@ -12,11 +12,12 @@ import (
 )
 
 type httpRequest struct {
-	Method    string
-	Url       string
-	PathParam string
-	UserAgent string
-	Body      string
+	Method         string
+	Url            string
+	PathParam      string
+	AcceptEncoding string
+	UserAgent      string
+	Body           string
 }
 
 func main() {
@@ -93,7 +94,10 @@ func requestHandler(conn net.Conn) {
 		switch strings.ToLower(r) {
 		case "user-agent:":
 			httpRequest.UserAgent = requestFields[i+1]
+		case "accept-encoding:":
+			httpRequest.AcceptEncoding = requestFields[i+1]
 		}
+
 	}
 	responseHander(httpRequest, conn)
 }
@@ -112,7 +116,11 @@ func responseHander(req httpRequest, conn net.Conn) {
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
 		length := len(req.PathParam)
-		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+		if req.AcceptEncoding == "gzip" {
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nAccept-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, req.PathParam)
+		} else {
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+		}
 	case "files":
 		if req.Method == "GET" {
 			length, data, err := readFile(req.PathParam)
@@ -127,7 +135,7 @@ func responseHander(req httpRequest, conn net.Conn) {
 			data := []byte(req.Body)
 			dir := "/tmp/data/codecrafters.io/http-server-tester/" + req.PathParam
 			os.Create(dir)
-			os.WriteFile(dir, data, 666)
+			os.WriteFile(dir, data, 777)
 			response = fmt.Sprintf("HTTP/1.1 201 Created\r\n\r\n")
 		}
 

@@ -128,18 +128,16 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.PathParam)
 		// log.Println("formatted hex ->" + formatted)
 		log.Println(req.PathParam)
-		var b bytes.Buffer
+		var buffer bytes.Buffer
+		w := gzip.NewWriter(&buffer)
+		w.Write([]byte(req.PathParam))
+		w.Close()
+		req.PathParam = buffer.String()
 		if req.AcceptEncoding == "gzip" {
-			w := gzip.NewWriter(&b)
-			if _, err := w.Write([]byte(req.PathParam)); err != nil {
-				log.Fatal(err)
-			}
-			if err := w.Close(); err != nil {
-				log.Fatal(err)
-			}
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, b.Bytes())
+
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, req.PathParam)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, b.Bytes())
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
 		}
 
 	case "files":

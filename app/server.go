@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
-	"encoding/hex"
+	"bytes"
+	"compress/gzip"
+	// "encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -121,15 +123,22 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.UserAgent)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
-		hx := hex.EncodeToString([]byte(req.PathParam))
-		formatted := returnInHexFormat(hx)
+		// hx := hex.EncodeToString([]byte(req.PathParam))
+		// formatted := returnInHexFormat(hx)
 		length := len(req.PathParam)
-		log.Println("formatted hex ->" + formatted)
+		// log.Println("formatted hex ->" + formatted)
+		log.Println(req.PathParam)
+
+		var b bytes.Buffer
+		wr := gzip.NewWriter(&b)
+		wr.Write([]byte(req.PathParam))
+		wr.Close()
 		if req.AcceptEncoding == "gzip" {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, formatted)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, b)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, formatted)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, b)
 		}
+
 	case "files":
 		if req.Method == "GET" {
 			length, data, err := readFile(req.PathParam)
@@ -151,7 +160,6 @@ func responseHander(req httpRequest, conn net.Conn) {
 	default:
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
-
 	_, err := conn.Write([]byte(response))
 	if err != nil {
 		fmt.Println("Error writing to connection")

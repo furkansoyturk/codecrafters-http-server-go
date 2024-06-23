@@ -128,13 +128,13 @@ func responseHander(req httpRequest, conn net.Conn) {
 		// formatted := returnInHexFormat(hx)
 		length := len(req.PathParam)
 		// log.Println("formatted hex ->" + formatted)
-		log.Println(req.PathParam)
-		res := gZip(req)
+		res := gZip(req.PathParam)
 		if req.AcceptEncoding == "gzip" {
 
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, res.PathParam)
+			a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, res)
+			response = a
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, res.PathParam)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, res)
 		}
 
 	case "files":
@@ -158,19 +158,21 @@ func responseHander(req httpRequest, conn net.Conn) {
 	default:
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
+
 	_, err := conn.Write([]byte(response))
+
 	if err != nil {
 		fmt.Println("Error writing to connection")
 		os.Exit(1)
 	}
 }
 
-func gZip(req httpRequest) httpRequest {
+func gZip(req string) string {
 	var buffer bytes.Buffer
 	w := gzip.NewWriter(&buffer)
-	w.Write([]byte(req.PathParam))
+	w.Write([]byte(req))
 	w.Close()
-	req.PathParam = buffer.String()
+	req = buffer.String()
 	return req
 }
 

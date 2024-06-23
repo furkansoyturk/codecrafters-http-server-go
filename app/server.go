@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -120,11 +121,12 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.UserAgent)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
+		hx := hex.EncodeToString([]byte(req.PathParam))
 		length := len(req.PathParam)
 		if req.AcceptEncoding == "gzip" {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, req.PathParam)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, hx)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, hx)
 		}
 	case "files":
 		if req.Method == "GET" {

@@ -124,12 +124,25 @@ func responseHander(req httpRequest, conn net.Conn) {
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
 		res := gZip(req.PathParam)
-		if req.AcceptEncoding == "gzip" {
+		str := req.PathParam
+		var b bytes.Buffer
+		w := gzip.NewWriter(&b)
+		if _, err := w.Write([]byte(str)); err != nil {
+			log.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			log.Fatal(err)
+		}
 
-			a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: %v\r\nContent-Length: %v\r\n\r\n%v", req.AcceptEncoding, len(req.PathParam), res)
-			response = a
+		if req.AcceptEncoding == "gzip" {
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\nContent-Encoding: gzip\r\n\r\n%s", len(b.Bytes()), b.Bytes())
+			// a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: %v\r\nContent-Length: %v\r\n\r\n%v", req.AcceptEncoding, len(req.PathParam), res)
+			// response = a
+			log.Println(response)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", len(req.PathParam), req.PathParam)
+			// response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", len(req.PathParam), req.PathParam)
+
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(req.PathParam), str)
 		}
 
 	case "files":

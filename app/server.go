@@ -107,6 +107,7 @@ func requestHandler(conn net.Conn) {
 		}
 
 	}
+
 	responseHander(httpRequest, conn)
 }
 
@@ -128,16 +129,12 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.PathParam)
 		// log.Println("formatted hex ->" + formatted)
 		log.Println(req.PathParam)
-		var buffer bytes.Buffer
-		w := gzip.NewWriter(&buffer)
-		w.Write([]byte(req.PathParam))
-		w.Close()
-		req.PathParam = buffer.String()
+		res := gZip(req)
 		if req.AcceptEncoding == "gzip" {
 
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, req.PathParam)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, res.PathParam)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.PathParam)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, res.PathParam)
 		}
 
 	case "files":
@@ -166,7 +163,15 @@ func responseHander(req httpRequest, conn net.Conn) {
 		fmt.Println("Error writing to connection")
 		os.Exit(1)
 	}
+}
 
+func gZip(req httpRequest) httpRequest {
+	var buffer bytes.Buffer
+	w := gzip.NewWriter(&buffer)
+	w.Write([]byte(req.PathParam))
+	w.Close()
+	req.PathParam = buffer.String()
+	return req
 }
 
 func returnInHexFormat(data string) string {

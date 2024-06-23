@@ -126,7 +126,7 @@ func responseHander(req httpRequest, conn net.Conn) {
 		res := gZip(req.PathParam)
 		if req.AcceptEncoding == "gzip" {
 
-			a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", len(req.PathParam), req.AcceptEncoding, res)
+			a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", len(res), req.AcceptEncoding, res)
 			response = a
 		} else {
 			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", len(req.PathParam), res)

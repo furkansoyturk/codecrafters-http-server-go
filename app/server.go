@@ -1,221 +1,221 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
+	// "encoding/hex"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"os"
-	"regexp"
+	"path/filepath"
 	"strings"
 )
 
-type Headers map[string]string
-
-const (
-	HTTP_OK        = "HTTP/1.1 200 OK"
-	HTTP_CREATED   = "HTTP/1.1 201 Created"
-	HTTP_NOT_FOUND = "HTTP/1.1 404 Not Found"
-)
-
-type Request struct {
-	HttpVerb string
-	Path     string
-	Protocol string
-	Headers  Headers
-	Body     string
+type httpRequest struct {
+	Method         string
+	Url            string
+	PathParam      string
+	AcceptEncoding string
+	UserAgent      string
+	Body           string
 }
 
-func ParseRequest(rawRequest string) Request {
-	reqLine, rawRemainder, found := strings.Cut(rawRequest, "\r\n")
-	if !found {
-		fmt.Println("Request malformed")
-		os.Exit(1)
-	}
-	reqLineParts := strings.Split(reqLine, " ")
-	blobbedHeaders, body, found := strings.Cut(rawRemainder, "\r\n\r\n")
-	if !found {
-		fmt.Println("Request malformed")
-		os.Exit(1)
-	}
-	rawHeaders := strings.Split(blobbedHeaders, "\r\n")
-	headerMap := make(Headers)
-	for _, rawHeader := range rawHeaders {
-		key, val, found := strings.Cut(rawHeader, ":")
-		if !found {
-			fmt.Println("Header malformed")
-			os.Exit(1)
-		}
-		headerMap[key] = strings.TrimSpace(val)
-	}
-	return Request{
-		HttpVerb: reqLineParts[0],
-		Path:     reqLineParts[1],
-		Protocol: reqLineParts[2],
-		Headers:  headerMap,
-		Body:     body,
-	}
-}
-func WriteResponse(conn net.Conn, status string, headers Headers, body string) {
-	conn.Write([]byte(status))
-	conn.Write([]byte("\r\n"))
-	if headers != nil {
-		for headerKey, headerVal := range headers {
-			hString := fmt.Sprintf("%s: %s\r\n", headerKey, headerVal)
-			conn.Write([]byte(hString))
-		}
-	}
-	conn.Write([]byte("\r\n"))
-	if body != "" {
-		conn.Write([]byte(body))
-	}
-}
-func GetEchoString(req Request) string {
-	_, echoStr, _ := strings.Cut(req.Path[1:], "/")
-	return echoStr
-}
-func HandleGetFileCall(conn net.Conn, req Request, dir string) {
-	pathParts := strings.Split(req.Path, "/")
-	filename := pathParts[len(pathParts)-1]
-	filepath := fmt.Sprintf("%s/%s", dir, filename)
-	fileInfo, err := os.Stat(filepath)
-	if err != nil {
-		WriteResponse(conn, HTTP_NOT_FOUND, nil, "")
-	}
-	file, err := os.Open(filepath)
-	if err != nil {
-		WriteResponse(conn, HTTP_NOT_FOUND, nil, "")
-	}
-	fileSize := fileInfo.Size()
-	contents := make([]byte, fileSize)
-	bytesRead, err := file.Read(contents)
-	if err != nil {
-		WriteResponse(conn, HTTP_NOT_FOUND, nil, "")
-	}
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/octet-stream"
-	headers["Content-Length"] = fmt.Sprintf("%d", bytesRead)
-	WriteResponse(conn, HTTP_OK, headers, string(contents))
-}
-func HandlePostFileCall(conn net.Conn, req Request, dir string) {
-	pathParts := strings.Split(req.Path, "/")
-	filename := pathParts[len(pathParts)-1]
-	filepath := fmt.Sprintf("%s/%s", dir, filename)
-	rawOut := []byte(req.Body)
-	out := bytes.Trim(rawOut, "\x00")
-	err := os.WriteFile(filepath, out, 0644)
-	if err != nil {
-		WriteResponse(conn, "500", nil, "")
-	}
-	headers := make(Headers)
-	headers["Content-Length"] = "0"
-	WriteResponse(conn, HTTP_CREATED, headers, "")
-}
-func HandleEchoCall(conn net.Conn, req Request) {
-	content := GetEchoString(req)
-	returnHeaders := make(Headers)
-	returnHeaders["Content-Type"] = "text/plain"
-	returnHeaders["Content-Length"] = fmt.Sprintf("%d", (len(content)))
-	rawEncodings, ok := req.Headers["Accept-Encoding"]
-	if ok {
-		encodings := strings.Split(rawEncodings, ",")
-		for _, rawEncoding := range encodings {
-			encoding := strings.TrimSpace(rawEncoding)
-			if encoding[len(encoding)-1] == []byte(",")[0] {
-				encoding = encoding[:len(encoding)-2]
-			}
-			if encoding == "gzip" {
-				returnHeaders["Content-Encoding"] = encoding
-				var compressedContent bytes.Buffer
-				w := gzip.NewWriter(&compressedContent)
-				w.Write([]byte(content))
-				w.Close()
-				returnHeaders["Content-Length"] = fmt.Sprintf("%d", compressedContent.Len())
-				WriteResponse(conn, HTTP_OK, returnHeaders, string(compressedContent.Bytes()))
-				return
-			}
-		}
-	}
-	WriteResponse(conn, HTTP_OK, returnHeaders, content)
-}
-func shouldEcho(req Request) bool {
-	verbOk := req.HttpVerb == "GET"
-	pathOk, _ := regexp.Match("/echo/.+", []byte(req.Path))
-	return verbOk && pathOk
-}
-func shouldGetFile(req Request) bool {
-	verbOk := req.HttpVerb == "GET"
-	pathOk, _ := regexp.Match("/files/.+", []byte(req.Path))
-	return verbOk && pathOk
-}
-func shouldPostFile(req Request) bool {
-	verbOk := req.HttpVerb == "POST"
-	pathOk, _ := regexp.Match("/files/.+", []byte(req.Path))
-	return verbOk && pathOk
-}
-func HandleRequest(conn net.Conn, dir string) {
-	bData := make([]byte, 1024)
-	conn.Read(bData)
-	data := string(bData)
-	req := ParseRequest(data)
-	if shouldGetFile(req) {
-		HandleGetFileCall(conn, req, dir)
-		return
-	}
-	if shouldPostFile(req) {
-		HandlePostFileCall(conn, req, dir)
-		return
-	}
-	if shouldEcho(req) {
-		HandleEchoCall(conn, req)
-		return
-	}
-	if agent, ok := req.Headers["User-Agent"]; ok {
-		headers := make(Headers)
-		headers["Content-Type"] = "text/plain"
-		headers["Content-Length"] = fmt.Sprintf("%d", len(agent))
-		WriteResponse(conn, HTTP_OK, headers, agent)
-		return
-	}
-	if strings.Contains(data, "GET / HTTP/1.1") {
-		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-	}
-	conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-}
-func ParseArgs(args []string) string {
-	dirIdx := -1
-	for i, arg := range args {
-		if arg == "--directory" {
-			dirIdx = i + 1
-		}
-	}
-	if dirIdx == -1 {
-		return ""
-	}
-	return args[dirIdx]
-}
 func main() {
-	dir := ParseArgs(os.Args[1:])
+	log.Printf("Listening on 4221...")
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
 		os.Exit(1)
 	}
-	newConns := make(chan net.Conn)
-	go func(l net.Listener) {
-		for {
-			c, err := l.Accept()
-			if err != nil {
-				newConns <- nil
-				return
-			}
-			newConns <- c
-		}
-	}(l)
+
 	for {
-		select {
-		case c := <-newConns:
-			HandleRequest(c, dir)
+
+		conn, err := l.Accept()
+
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+		go requestHandler(conn)
+	}
+}
+
+func requestHandler(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	buffer := make([]byte, 0, 4096)
+	temp := make([]byte, 512)
+
+	for {
+		n, err := reader.Read(temp)
+		if err != nil {
+			if err != io.EOF {
+				fmt.Println("Error reading:", err.Error())
+			}
+			break
+		}
+		buffer = append(buffer, temp[:n]...)
+		if strings.Contains(string(buffer), "\r\n\r\n") {
+			break
 		}
 	}
+	var httpRequest httpRequest
+	request := string(buffer)
+	log.Printf("Request: %v", request)
+	requestFields := strings.Fields(request)
+	httpRequest.Method = requestFields[0]
+	urlParts := strings.Split(requestFields[1], "/")
+
+	var count int
+	var body string
+	for i, s := range requestFields {
+		if strings.ToLower(s) == "content-type:" {
+			count = 2 + i
+		}
+	}
+
+	for i := count; i < len(requestFields); i++ {
+		body += requestFields[i]
+		if i < len(requestFields)-1 {
+			body += " "
+		}
+	}
+	log.Println("body - > " + body)
+	httpRequest.Body = body
+
+	switch len(urlParts) {
+	case 2:
+		httpRequest.Url = urlParts[1]
+	case 3:
+		httpRequest.Url = urlParts[1]
+		httpRequest.PathParam = urlParts[2]
+	}
+
+	for i, r := range requestFields {
+		switch strings.ToLower(r) {
+		case "user-agent:":
+			httpRequest.UserAgent = requestFields[i+1]
+		case "accept-encoding:":
+			httpRequest.AcceptEncoding = requestFields[i+1]
+			for j := len(requestFields) - i; j < len(requestFields); j++ {
+				if strings.ToLower(strings.Trim(requestFields[j], ",")) == "gzip" {
+					httpRequest.AcceptEncoding = "gzip"
+				}
+			}
+		}
+
+	}
+
+	responseHander(httpRequest, conn)
+}
+
+func responseHander(req httpRequest, conn net.Conn) {
+	defer conn.Close()
+
+	var response string
+	switch req.Url {
+	case "":
+		response = "HTTP/1.1 200 OK\r\n\r\n"
+	case "/":
+		response = "HTTP/1.1 200 OK\r\n\r\n"
+	case "user-agent":
+		length := len(req.UserAgent)
+		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
+	case "echo":
+		// hx := hex.EncodeToString([]byte(req.PathParam))
+		// formatted := returnInHexFormat(hx)
+		length := len(req.PathParam)
+		// log.Println("formatted hex ->" + formatted)
+		res := gZip(req.PathParam)
+		if req.AcceptEncoding == "gzip" {
+
+			a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, res)
+			response = a
+		} else {
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, res)
+		}
+
+	case "files":
+		if req.Method == "GET" {
+			length, data, err := readFile(req.PathParam)
+			if err != nil {
+				response = ("HTTP/1.1 404 Not Found\r\n\r\n")
+			} else {
+				response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %v\r\n\r\n%v", length, data)
+			}
+		}
+
+		if req.Method == "POST" {
+			data := []byte(req.Body)
+			dir := "/tmp/data/codecrafters.io/http-server-tester/" + req.PathParam
+			os.Create(dir)
+			os.WriteFile(dir, data, 777)
+			response = fmt.Sprintf("HTTP/1.1 201 Created\r\n\r\n")
+		}
+
+	default:
+		response = "HTTP/1.1 404 Not Found\r\n\r\n"
+	}
+
+	_, err := conn.Write([]byte(response))
+
+	if err != nil {
+		fmt.Println("Error writing to connection")
+		os.Exit(1)
+	}
+}
+
+func gZip(req string) string {
+	var buffer bytes.Buffer
+	w := gzip.NewWriter(&buffer)
+	w.Write([]byte(req))
+	w.Close()
+	req = buffer.String()
+	return req
+}
+
+func returnInHexFormat(data string) string {
+	var formattedString string
+	var count int
+	for i, s := range data {
+		count++
+		if i < len(data)-1 {
+			formattedString += string(s)
+			if count%2 == 0 {
+				formattedString += " "
+			}
+		} else {
+			formattedString += string(s)
+		}
+	}
+	return formattedString
+}
+func findFilesInTmp() map[string]string {
+	path, err := os.Getwd()
+	if err != nil {
+		log.Fatal("err while getting current path")
+	}
+
+	files := make(map[string]string)
+	path = path + "/tmp/"
+	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if filepath.Base(path) != "tmp" {
+			files[path] = filepath.Base(path)
+			if err != nil {
+				log.Println("ERROR:", err)
+			}
+		}
+		return nil
+	})
+	return files
+}
+func readFile(fileName string) (length int, data string, e error) {
+	log.Println("file name :" + fileName)
+	file, err := os.ReadFile("/tmp/data/codecrafters.io/http-server-tester/" + fileName)
+	if err != nil {
+		log.Println("err while reading file")
+	}
+	return len(file), string(file), err
 }

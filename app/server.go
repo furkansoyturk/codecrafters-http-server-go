@@ -123,7 +123,6 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.UserAgent)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
-		// res := gZip(req.PathParam)
 		str := req.PathParam
 		var b bytes.Buffer
 		w := gzip.NewWriter(&b)
@@ -136,12 +135,8 @@ func responseHander(req httpRequest, conn net.Conn) {
 
 		if req.AcceptEncoding == "gzip" {
 			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\nContent-Encoding: gzip\r\n\r\n%s", len(b.Bytes()), b.Bytes())
-			// a := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: %v\r\nContent-Length: %v\r\n\r\n%v", req.AcceptEncoding, len(req.PathParam), res)
-			// response = a
 			log.Println(response)
 		} else {
-			// response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", len(req.PathParam), req.PathParam)
-
 			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(req.PathParam), str)
 		}
 
@@ -173,15 +168,6 @@ func responseHander(req httpRequest, conn net.Conn) {
 		fmt.Println("Error writing to connection")
 		os.Exit(1)
 	}
-}
-
-func gZip(req string) string {
-	var buffer bytes.Buffer
-	w := gzip.NewWriter(&buffer)
-	w.Write([]byte(req))
-	w.Close()
-	req = buffer.String()
-	return req
 }
 
 func returnInHexFormat(data string) string {

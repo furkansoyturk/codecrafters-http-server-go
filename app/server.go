@@ -122,11 +122,13 @@ func responseHander(req httpRequest, conn net.Conn) {
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
 		hx := hex.EncodeToString([]byte(req.PathParam))
+		formatted := returnInHexFormat(hx)
 		length := len(req.PathParam)
+		log.Println("formatted hex ->" + formatted)
 		if req.AcceptEncoding == "gzip" {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, hx)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\nContent-Encoding: %v\r\n\r\n%v", length, req.AcceptEncoding, formatted)
 		} else {
-			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, hx)
+			response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, formatted)
 		}
 	case "files":
 		if req.Method == "GET" {
@@ -156,6 +158,23 @@ func responseHander(req httpRequest, conn net.Conn) {
 		os.Exit(1)
 	}
 
+}
+
+func returnInHexFormat(data string) string {
+	var formattedString string
+	var count int
+	for i, s := range data {
+		count++
+		if i < len(data)-1 {
+			formattedString += string(s)
+			if count%2 == 0 {
+				formattedString += " "
+			}
+		} else {
+			formattedString += string(s)
+		}
+	}
+	return formattedString
 }
 func findFilesInTmp() map[string]string {
 	path, err := os.Getwd()

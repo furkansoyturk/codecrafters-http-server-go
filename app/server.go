@@ -96,6 +96,11 @@ func requestHandler(conn net.Conn) {
 			httpRequest.UserAgent = requestFields[i+1]
 		case "accept-encoding:":
 			httpRequest.AcceptEncoding = requestFields[i+1]
+			for j := len(requestFields) - i; j < len(requestFields); j++ {
+				if strings.ToLower(strings.Trim(requestFields[j], ",")) == "gzip" {
+					httpRequest.AcceptEncoding = "gzip"
+				}
+			}
 		}
 
 	}

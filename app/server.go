@@ -123,7 +123,7 @@ func responseHander(req httpRequest, conn net.Conn) {
 		length := len(req.UserAgent)
 		response = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v", length, req.UserAgent)
 	case "echo":
-		res := gZip(req.PathParam)
+		// res := gZip(req.PathParam)
 		str := req.PathParam
 		var b bytes.Buffer
 		w := gzip.NewWriter(&b)

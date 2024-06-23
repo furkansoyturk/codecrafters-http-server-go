@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"regexp"
@@ -198,7 +197,6 @@ func ParseArgs(args []string) string {
 func main() {
 	dir := ParseArgs(os.Args[1:])
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
-	log.Println("listening on 4221 ...")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
 		os.Exit(1)
